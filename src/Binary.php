@@ -40,14 +40,21 @@ namespace sekjun9878\Binary;
  * Another benefit to having a Binary class is that it provides type safety as a value object.
  */
 
-class Binary
+final class Binary
 {
-    public $data;
-    public $offset;
+	const BIG_ENDIAN = 1;
+	const LITTLE_ENDIAN = 2;
+	const MACHINE_DEPENDENT_ENDIAN = 3;
 
-    public function __construct($data)
+    public $data;
+	public $endianness;
+
+    public $offset = 0;
+
+    public function __construct($data, $endianness = self::MACHINE_DEPENDENT_ENDIAN)
     {
         $this->data = $data;
+	    $this->endianness = $endianness;
     }
 
     public function shift($length)
@@ -125,6 +132,7 @@ function shift_tint(Binary $data)
      */
 
 	// Note - the range requirement is enforced by the fact that only 1 byte is gotten and the bit-shifting
+	// Note - ord() is faster than unpack() for single bytes
 
     if(PHP_INT_SIZE === 8) // 64-bit
     {
@@ -148,14 +156,76 @@ function shift_utint(Binary $data)
 	return ord($data->shift(1));
 }
 
-function shift_sint(&$data)
+function shift_sint(Binary $data)
 {
+	if($data->endianness === Binary::BIG_ENDIAN)
+	{
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("n", $data->shift(2))[1] << 48 >> 48;
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("n", $data->shift(2))[1] << 16 >> 16;
+		}
 
+		throw new \RuntimeException("Unknown system architecture");
+	}
+	else if($data->endianness === Binary::LITTLE_ENDIAN)
+	{
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("v", $data->shift(2))[1] << 48 >> 48;
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("v", $data->shift(2))[1] << 16 >> 16;
+		}
+
+		throw new \RuntimeException("Unknown system architecture");
+	}
+	else if($data->endianness === Binary::MACHINE_DEPENDENT_ENDIAN)
+	{
+		return unpack("s", $data->shift(2))[1];
+	}
+
+	throw new \InvalidArgumentException("Unknown Endianness Provided");
 }
 
-function shift_usint(&$data)
+function shift_usint(Binary $data)
 {
+	if($data->endianness === Binary::BIG_ENDIAN)
+	{
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("n", $data->shift(2))[1];
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("n", $data->shift(2))[1];
+		}
 
+		throw new \RuntimeException("Unknown system architecture");
+	}
+	else if($data->endianness === Binary::LITTLE_ENDIAN)
+	{
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("v", $data->shift(2))[1];
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("v", $data->shift(2))[1];
+		}
+
+		throw new \RuntimeException("Unknown system architecture");
+	}
+	else if($data->endianness === Binary::MACHINE_DEPENDENT_ENDIAN)
+	{
+		return unpack("S", $data->shift(2))[1];
+	}
+
+	throw new \InvalidArgumentException("Unknown Endianness Provided");
 }
 
 function shift_mint(&$data)
