@@ -29,17 +29,49 @@ namespace sekjun9878\Binary;
  * More info: https://igor.io/2012/09/24/binary-parsing.html
  */
 
+/*
+ * A Binary class is needed because we want to keep an offset of where the shift_ functions have last operated on.
+ * This method is faster than functions using references such as `function shift_tint(&$buffer)` because using
+ * references means that a variable (a memory space) has to be written to every time there is a shift, where as
+ * using an object allows us to simply write an integer offset. An integer is smaller than an entire binary string.
+ *
+ * Performance is noticeably faster: https://3v4l.org/AhTJD
+ *
+ * Another benefit to having a Binary class is that it provides type safety as a value object.
+ */
+
+class Binary
+{
+    public $data;
+    public $offset;
+
+    public function __construct($data)
+    {
+        $this->data = $data;
+    }
+
+    public function shift($length)
+    {
+        if($length < 0 or $length > strlen($this->data))
+        {
+            throw new \InvalidArgumentException("length cannot be zero or bigger than the current data buffer.");
+        }
+
+        $offset = $this->offset;
+        $this->offset += $length;
+
+        return substr($this->data, $offset, $length);
+    }
+}
+
 /**
  * Shift and extract a signed TINYINT (1 Byte)
  *
- * @param string $data Raw binary data of any length
+ * @param Binary $data Raw binary data of any length wrapped in Binary value object
  * @return int Integer in value from -128 to 127
  */
-function shift_tint(&$data)
+function shift_tint(Binary $data)
 {
-    $char = $data{0};
-    $data = substr($data, 1);
-
     /*
      * More info in Two's Complements: http://www.cs.cornell.edu/~tomf/notes/cps104/twoscomp.html
      *
@@ -92,31 +124,28 @@ function shift_tint(&$data)
      * 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0111 0100 <116 as a number>
      */
 
+	// Note - the range requirement is enforced by the fact that only 1 byte is gotten and the bit-shifting
+
     if(PHP_INT_SIZE === 8) // 64-bit
     {
-        return ((ord($char) << 56) >> 56);
+        // Get the first byte of the binary data, convert it to an integer (for bitwise operations), and perform
+        // the above operation sequence.
+        return ((ord($data->shift(1)) << 56) >> 56);
     }
     else if(PHP_INT_SIZE === 4) // 32-bit
     {
-        return ((ord($char) << 24) >> 24);
+        // Same as above.
+        return ((ord($data->shift(1)) << 24) >> 24);
     }
 
     // Unknown-bit system
-    throw new \LogicException;
+    throw new \RuntimeException("Unknown system architecture");
 }
 
-/**
- * Shift and extract an unsigned TINYINT (1 Byte)
- *
- * @param string $data Raw binary data of any length
- * @return int Integer in value from 0 to 255
- */
-function shift_utint(&$data)
+function shift_utint(Binary $data)
 {
-    $char = $data{0};
-    $data = substr($data, 1);
-
-    return ord($char);
+	// Note - the range requirement is enforced by the fact that only 1 byte is gotten
+	return ord($data->shift(1));
 }
 
 function shift_sint(&$data)
