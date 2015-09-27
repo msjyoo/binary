@@ -40,6 +40,8 @@ namespace sekjun9878\Binary;
  * Another benefit to having a Binary class is that it provides type safety as a value object.
  */
 
+use Brick\Math\BigInteger;
+
 final class Binary
 {
 	const BIG_ENDIAN = 1;
@@ -158,51 +160,88 @@ function shift_utint(Binary $data)
 
 function shift_sint(Binary $data)
 {
-	if($data->endianness === Binary::BIG_ENDIAN)
+	if(PHP_INT_SIZE === 8)
 	{
-		if(PHP_INT_SIZE === 8)
+		if($data->endianness === Binary::BIG_ENDIAN)
 		{
 			return unpack("n", $data->shift(2))[1] << 48 >> 48;
 		}
-		else if(PHP_INT_SIZE === 4)
-		{
-			return unpack("n", $data->shift(2))[1] << 16 >> 16;
-		}
-
-		throw new \RuntimeException("Unknown system architecture");
-	}
-	else if($data->endianness === Binary::LITTLE_ENDIAN)
-	{
-		if(PHP_INT_SIZE === 8)
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
 		{
 			return unpack("v", $data->shift(2))[1] << 48 >> 48;
 		}
-		else if(PHP_INT_SIZE === 4)
+
+		throw new \InvalidArgumentException("Unknown endianness provided");
+
+	}
+	else if(PHP_INT_SIZE === 4)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("n", $data->shift(2))[1] << 16 >> 16;
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
 		{
 			return unpack("v", $data->shift(2))[1] << 16 >> 16;
 		}
 
-		throw new \RuntimeException("Unknown system architecture");
-	}
-	else if($data->endianness === Binary::MACHINE_DEPENDENT_ENDIAN)
-	{
-		return unpack("s", $data->shift(2))[1];
+		throw new \InvalidArgumentException("Unknown endianness provided");
 	}
 
-	throw new \InvalidArgumentException("Unknown Endianness Provided");
+	throw new \RuntimeException("Unknown system architecture");
 }
 
 function shift_usint(Binary $data)
 {
+	if(PHP_INT_SIZE === 8)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("n", $data->shift(2))[1];
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			return unpack("v", $data->shift(2))[1];
+		}
+
+		throw new \InvalidArgumentException("Unknown endianness provided");
+
+	}
+	else if(PHP_INT_SIZE === 4)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("n", $data->shift(2))[1];
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			return unpack("v", $data->shift(2))[1];
+		}
+
+		throw new \InvalidArgumentException("Unknown endianness provided");
+	}
+
+	throw new \RuntimeException("Unknown system architecture");
+}
+
+//TODO: Do signed integers work with this workaround?
+function shift_mint(Binary $data)
+{
+	/*
+	 * PHP does not have a specific unpack function for 3-byte integers.
+	 * Therefore, to overcome that, we pad the binary string to make it 4 bytes, parse it as a 4-byte integer,
+	 * and then use bitwise operators to make the integer 3-bytes.
+	 */
+
 	if($data->endianness === Binary::BIG_ENDIAN)
 	{
 		if(PHP_INT_SIZE === 8)
 		{
-			return unpack("n", $data->shift(2))[1];
+			return unpack("N", "\x00".$data->shift(3))[1] << 40 >> 40;
 		}
 		else if(PHP_INT_SIZE === 4)
 		{
-			return unpack("n", $data->shift(2))[1];
+			return unpack("N", "\x00".$data->shift(3))[1] << 8 >> 8;
 		}
 
 		throw new \RuntimeException("Unknown system architecture");
@@ -211,41 +250,138 @@ function shift_usint(Binary $data)
 	{
 		if(PHP_INT_SIZE === 8)
 		{
-			return unpack("v", $data->shift(2))[1];
+			return unpack("V", $data->shift(3)."\x00")[1] << 40 >> 40;
 		}
 		else if(PHP_INT_SIZE === 4)
 		{
-			return unpack("v", $data->shift(2))[1];
+			return unpack("V", $data->shift(3)."\x00")[1] << 8 >> 8;
 		}
 
 		throw new \RuntimeException("Unknown system architecture");
 	}
-	else if($data->endianness === Binary::MACHINE_DEPENDENT_ENDIAN)
+
+	throw new \InvalidArgumentException("Unknown endianness provided");
+}
+
+function shift_umint(Binary $data)
+{
+	if($data->endianness === Binary::BIG_ENDIAN)
 	{
-		return unpack("S", $data->shift(2))[1];
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("N", "\x00".$data->shift(3))[1];
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("N", "\x00".$data->shift(3))[1];
+		}
+
+		throw new \RuntimeException("Unknown system architecture");
+	}
+	else if($data->endianness === Binary::LITTLE_ENDIAN)
+	{
+		if(PHP_INT_SIZE === 8)
+		{
+			return unpack("V", $data->shift(3)."\x00")[1];
+		}
+		else if(PHP_INT_SIZE === 4)
+		{
+			return unpack("V", $data->shift(3)."\x00")[1];
+		}
+
+		throw new \RuntimeException("Unknown system architecture");
 	}
 
-	throw new \InvalidArgumentException("Unknown Endianness Provided");
+	throw new \InvalidArgumentException("Unknown endianness provided");
 }
 
-function shift_mint(&$data)
+function shift_int(Binary $data)
 {
+	if(PHP_INT_SIZE === 8)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("N", $data->shift(4))[1] << 32 >> 32;
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			return unpack("V", $data->shift(4))[1] << 32 >> 32;
+		}
 
+		throw new \InvalidArgumentException("Unknown endianness provided");
+
+	}
+	else if(PHP_INT_SIZE === 4)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("N", $data->shift(4))[1];
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			return unpack("V", $data->shift(4))[1];
+		}
+
+		throw new \InvalidArgumentException("Unknown endianness provided");
+	}
+
+	throw new \RuntimeException("Unknown system architecture");
 }
 
-function shift_umint(&$data)
+function shift_uint(Binary $data)
 {
+	if(PHP_INT_SIZE === 8)
+	{
+		if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			return unpack("N", $data->shift(4))[1];
+		}
+		else if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			return unpack("V", $data->shift(4))[1];
+		}
 
-}
+		throw new \InvalidArgumentException("Unknown endianness provided");
 
-function shift_int(&$data)
-{
+	}
+	else if(PHP_INT_SIZE === 4)
+	{
+		/*
+		 * On 32-bit systems, attempting to store a number of an unsigned 32-bit integer in a standard PHP integer
+		 * (which is a signed 32-bit) is impossible. PHP will convert such numbers automatically to a float which is
+		 * a behaviour we do not want.
+		 *
+		 * Therefore, it is necessary to manually gather individual bytes and put them back together to preserve
+		 * precision.
+		 */
 
-}
+		$v = unpack("C4", $data->shift(4));
 
-function shift_uint(&$data)
-{
+		if($data->endianness === Binary::LITTLE_ENDIAN)
+		{
+			$v = array_reverse($v);
+		}
+		else if($data->endianness === Binary::BIG_ENDIAN)
+		{
+			$v = array_values($v); // Otherwise the array will start at index 1
+		}
+		else
+		{
+			throw new \InvalidArgumentException("Unknown endianness provided");
+		}
 
+		return BigInteger::of($v[0])
+			->multipliedBy(BigInteger::of(2)->power(56))
+			->plus(BigInteger::of($v[1])->multipliedBy(BigInteger::of(2)->power(48)))
+			->plus(BigInteger::of($v[2])->multipliedBy(BigInteger::of(2)->power(40)))
+			->plus(BigInteger::of($v[3])->multipliedBy(BigInteger::of(2)->power(32)))
+			->plus(BigInteger::of($v[4])->multipliedBy(BigInteger::of(2)->power(24)))
+			->plus(BigInteger::of($v[5])->multipliedBy(BigInteger::of(2)->power(16)))
+			->plus(BigInteger::of($v[6])->multipliedBy(BigInteger::of(2)->power(8)))
+			->plus(BigInteger::of($v[7]));
+	}
+
+	throw new \RuntimeException("Unknown system architecture");
 }
 
 function shift_bint(&$data)
@@ -256,4 +392,16 @@ function shift_bint(&$data)
 function shift_ubint(&$data)
 {
 
+}
+
+function get_system_endianness()
+{
+	if(unpack('S', "\x01\x00")[1] === 1)
+	{
+		return 2; // Little-Endian
+	}
+	else
+	{
+		return 1; // Big-Endian
+	}
 }

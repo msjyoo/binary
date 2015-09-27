@@ -1,0 +1,15 @@
+{
+    "name": "sekjun9878/binary",
+    "description": "Binary parsing library for PHP",
+    "minimum-stability": "dev",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Michael Yoo",
+            "email": "michael@yoo.id.au"
+        }
+    ],
+    "require": {
+        "brick/math": "~0.5.2"
+    }
+}
